@@ -1,5 +1,9 @@
 # Skill: ventura.system — LOOP Skill Engine / Deterministic Replay
 
+![MIT](https://img.shields.io/github/license/chamseddinehiddoud/ventura.system)
+![stars](https://img.shields.io/github/stars/chamseddinehiddoud/ventura.system)
+![forks](https://img.shields.io/github/forks/chamseddinehiddoud/ventura.system)
+
 Skill de design de sistemas com **execução determinística**: explore os
 requisitos uma vez, compile o desenho, replique em sistemas similares com
 ~zero tokens, regenere quando a escala ou os requisitos mudarem.
