@@ -1,59 +1,48 @@
-# Skill: ventura.system — LOOP Skill Engine / Deterministic Replay
+# Skill: ventura.system — LOOP Skill Engine / Constrained Replay
 
-![MIT](https://img.shields.io/github/license/chamseddinehiddoud/ventura.system)
-![stars](https://img.shields.io/github/stars/chamseddinehiddoud/ventura.system)
-![forks](https://img.shields.io/github/forks/chamseddinehiddoud/ventura.system)
+![License](https://img.shields.io/github/license/venturalabs-ai/ventura.system)
+![Stars](https://img.shields.io/github/stars/venturalabs-ai/ventura.system)
 
-Skill de design de sistemas com **execução determinística**: explore os
-requisitos uma vez, compile o desenho, replique em sistemas similares com
-~zero tokens, regenere quando a escala ou os requisitos mudarem.
+Skill de design de sistemas com **replay restrito por desenho versionado**: explore requisitos quando necessário, compile decisões, reutilize artefatos compatíveis e regenere quando escala ou requisitos mudarem.
 
 ## Trigger
 
-Use quando o usuário quiser: desenhar um sistema, entrevista de system
-design, arquitetar um serviço, revisar trade-offs, estimar capacidade,
-dimensionar infraestrutura.
+Use quando o usuário quiser desenhar um sistema, preparar entrevista de system design, revisar trade-offs, estimar capacidade ou dimensionar infraestrutura.
 
-## Arquitetura Token-Efficient & Regenerative
+## Arquitetura de eficiência
 
-| Fase | Descrição | Consumo |
+| Fase | Descrição | Meta de contexto |
 |---|---|---|
-| **Explore** | Modelo forte analisa requisitos + estimativas (uma vez) | Alto (único) |
-| **Compile** | Gera `sistema.md`: blocos, dados, detalhes, trade-offs | Baixo |
-| **Replay** | Reutiliza o desenho em sistemas similares | Mínimo/Zero |
-| **Regenerate** | Escala/requisito mudou → regenere o desenho | Sob demanda |
+| **Explore** | Analisa requisitos e estimativas | Maior |
+| **Compile** | Gera `sistema.md`: blocos, dados, decisões e trade-offs | Reduzida |
+| **Constrained Replay** | Reutiliza apenas decisões compatíveis com o novo caso | Mínima necessária |
+| **Regenerate** | Reavalia quando escala, SLA ou requisitos mudarem | Sob demanda |
 
-## Receita determinística (Replay)
+O consumo real de tokens depende do modelo, runtime, contexto e ferramentas. Este projeto não afirma execução com zero tokens nem determinismo de saídas LLM.
+
+## Receita de replay
 
 ```text
-1. PEDIDO   — "desenhar sistema X" | "revisar arquitetura Y"
-2. RECEITA  — consulta sistema.md: blocos, modelo de dados, detalhes, trade-offs
-3. EXECUTA  — 1. requisitos | 2. estimativas | 3. blocos | 4. dados | 5. detalhes
-4. REGISTRA — decisões, riscos, gargalos, evolução
-5. STOP-YIELD — requisito de escala/consistência estoura o desenho → regenerar
+1. PEDIDO   — desenhar ou revisar sistema
+2. RECEITA  — consulta sistema.md: blocos, dados, detalhes e trade-offs
+3. EXECUTA  — requisitos | estimativas | blocos | dados | detalhes
+4. REGISTRA — decisões, riscos, gargalos e evolução
+5. STOP-YIELD — mudança relevante de requisito → regenerar
 ```
 
 ## Regras de engenharia
 
-- **Token Budget** — Explore: até 8k tokens. Replay: < 300 tokens.
-- **Context Firewall** — o replay só vê o desenho compilado (nunca o guia inteiro).
-- **Prefix Caching** — o sistema deste arquivo fica byte-stable.
-- **Skill Distillation** — desenho validado vira receita permanente.
-- **Regeneração** — novo requisito de escala → volta ao Explore.
+- definir token/context budget mensurável por runtime;
+- limitar o replay ao desenho compilado necessário;
+- usar prefixos estáveis somente quando o provedor/runtime oferecer cache compatível;
+- versionar decisões e trade-offs;
+- voltar ao Explore quando requisitos mudarem materialmente.
 
-## Como compilar o desenho (Explore → Compile)
-
-```text
-1. Entrevista de requisitos: funcional, não-funcional, usuários, volume, SLA
-2. Estima: QPS, armazenamento, largura de banda (ordem de grandeza)
-3. Compila sistema.md: diagrama de blocos, dados, cache, filas, consistência
-4. Documenta trade-offs e ativa o Replay
-```
-
-## Exemplo de uso
+## Compilar o desenho
 
 ```text
-Atue como ventura.system (modo REPLAY). Meu sistema.md é de um "encurtador de
-URL". Aplique o desenho a um "serviço de QR code": o que muda em blocos,
-dados e cache? Use menos de 300 tokens e registre os trade-offs.
+1. Levante requisitos funcionais e não funcionais, volume e SLA.
+2. Estime QPS, armazenamento e largura de banda em ordem de grandeza.
+3. Registre sistema.md com blocos, dados, cache, filas e consistência.
+4. Documente trade-offs e inicie Constrained Replay.
 ```
