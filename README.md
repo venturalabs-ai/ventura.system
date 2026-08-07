@@ -1,5 +1,9 @@
 # ventura.system
 
+![MIT](https://img.shields.io/github/license/chamseddinehiddoud/ventura.system)
+![stars](https://img.shields.io/github/stars/chamseddinehiddoud/ventura.system)
+![forks](https://img.shields.io/github/forks/chamseddinehiddoud/ventura.system)
+
 Versão **Ventura** do clássico *system-design-primer* — guia curado de design
 de sistemas para entrevistas e arquitetura, com uma skill de replay
 determinístico para desenhar soluções sem partir do zero a cada vez.
