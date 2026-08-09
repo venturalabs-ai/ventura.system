@@ -8,13 +8,17 @@ from ventura_system import (
     RunMetric,
     TaskProfile,
     append_metric,
+    budget_for_repository,
     choose_route,
     compile_context,
     load_registry,
+    load_repository_registry,
+    resolve_repository_profile,
 )
 
 ROOT = Path(__file__).resolve().parents[1]
 REGISTRY = ROOT / "config" / "model-registry.json"
+REPOSITORIES = ROOT / "config" / "repositories.json"
 
 
 class RouterTests(unittest.TestCase):
@@ -29,6 +33,27 @@ class RouterTests(unittest.TestCase):
                 for row in rows
             )
         )
+
+    def test_ecosystem_registry_covers_all_accessible_repositories(self):
+        profiles = load_repository_registry(REPOSITORIES)
+        self.assertEqual(len(profiles), 15)
+        self.assertEqual(len({p.repository.casefold() for p in profiles}), 15)
+
+    def test_security_repository_gets_critical_three_model_budget(self):
+        profiles = load_repository_registry(REPOSITORIES)
+        seg = resolve_repository_profile(profiles, "venturalabs-ai/Ventura.SEG")
+        budget = budget_for_repository(seg)
+        self.assertEqual(seg.role, "security")
+        self.assertEqual(budget.max_cost_usd, 2.0)
+        self.assertEqual(budget.max_models, 3)
+
+    def test_tool_first_repository_disables_challenger_spend(self):
+        profiles = load_repository_registry(REPOSITORIES)
+        build = resolve_repository_profile(profiles, "venturalabs-ai/ventura.build")
+        budget = budget_for_repository(build)
+        self.assertFalse(build.routing_enabled)
+        self.assertEqual(budget.max_models, 1)
+        self.assertFalse(budget.high_risk_requires_challenger)
 
     def test_economy_route_respects_budget(self):
         models = load_registry(REGISTRY)
