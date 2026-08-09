@@ -1,0 +1,48 @@
+name: Model Registry Freshness
+
+on:
+  schedule:
+    - cron: '17 9 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  freshness:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: '3.12'
+      - name: Check model registry age
+        id: freshness
+        shell: bash
+        run: |
+          if python scripts/check_registry_freshness.py --max-age-days 7; then
+            echo 'fresh=true' >> "$GITHUB_OUTPUT"
+          else
+            echo 'fresh=false' >> "$GITHUB_OUTPUT"
+          fi
+      - name: Open or update refresh issue
+        if: ${{ steps.freshness.outputs.fresh != 'true' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          TITLE='[automation] model registry refresh required'
+          BODY="The model registry is older than the allowed 7-day freshness window. Re-verify enabled model IDs, capabilities and token prices against official provider documentation before updating config/model-registry.json. Run: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+          NUMBER=$(gh api "repos/${GITHUB_REPOSITORY}/issues?state=open&per_page=100" --jq ".[] | select(.title == \"${TITLE}\") | .number" | head -n1 || true)
+          if [ -n "$NUMBER" ]; then
+            gh api "repos/${GITHUB_REPOSITORY}/issues/${NUMBER}/comments" --method POST -f body="$BODY" >/dev/null
+          else
+            gh api "repos/${GITHUB_REPOSITORY}/issues" --method POST -f title="$TITLE" -f body="$BODY" >/dev/null
+          fi
+      - name: Fail stale registry gate
+        if: ${{ steps.freshness.outputs.fresh != 'true' }}
+        run: exit 1

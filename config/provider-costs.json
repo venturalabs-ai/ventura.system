@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "currency": "USD",
+  "verified_at": "2026-08-09",
+  "providers": {
+    "openai": {"source":"https://developers.openai.com/api/docs/models/compare","refresh_days":7},
+    "anthropic": {"source":"https://platform.claude.com/docs/en/about-claude/pricing","refresh_days":7},
+    "google": {"source":"https://ai.google.dev/gemini-api/docs/pricing","refresh_days":7},
+    "xai": {"source":"https://docs.x.ai/developers/pricing","refresh_days":7},
+    "deepseek": {"source":"https://api-docs.deepseek.com/quick_start/pricing","refresh_days":7},
+    "mistral": {"source":"https://docs.mistral.ai/models","refresh_days":7},
+    "qwen": {"source":"dynamic discovery required","refresh_days":1},
+    "moonshot": {"source":"dynamic discovery required","refresh_days":1},
+    "cohere": {"source":"dynamic discovery required","refresh_days":1},
+    "perplexity": {"source":"dynamic discovery required","refresh_days":1}
+  }
+}
