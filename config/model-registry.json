@@ -1,0 +1,23 @@
+{
+  "schema_version": 1,
+  "verified_at": "2026-08-09",
+  "notes": "Prices are USD per 1M tokens when verified. Disabled discovery-only rows must be refreshed from provider APIs/docs before use.",
+  "models": [
+    {"provider":"openai","model_id":"gpt-5.6-sol","tier":"frontier","input_usd_per_mtok":5.0,"cached_input_usd_per_mtok":0.5,"output_usd_per_mtok":30.0,"quality":0.99,"latency":0.60,"capabilities":["reasoning","coding","tools","structured_output","vision"],"enabled":true},
+    {"provider":"openai","model_id":"gpt-5.6-terra","tier":"balanced","input_usd_per_mtok":2.5,"cached_input_usd_per_mtok":0.25,"output_usd_per_mtok":15.0,"quality":0.93,"latency":0.40,"capabilities":["reasoning","coding","tools","structured_output","vision"],"enabled":true},
+    {"provider":"openai","model_id":"gpt-5.6-luna","tier":"economy","input_usd_per_mtok":1.0,"cached_input_usd_per_mtok":0.10,"output_usd_per_mtok":6.0,"quality":0.86,"latency":0.20,"capabilities":["reasoning","coding","tools","structured_output","vision"],"enabled":true},
+    {"provider":"anthropic","model_id":"claude-fable-5","tier":"frontier","input_usd_per_mtok":10.0,"cached_input_usd_per_mtok":1.0,"output_usd_per_mtok":50.0,"quality":0.99,"latency":0.70,"capabilities":["reasoning","coding","tools","vision"],"enabled":true},
+    {"provider":"anthropic","model_id":"claude-opus-5","tier":"frontier","input_usd_per_mtok":5.0,"cached_input_usd_per_mtok":0.5,"output_usd_per_mtok":25.0,"quality":0.97,"latency":0.55,"capabilities":["reasoning","coding","tools","vision"],"enabled":true},
+    {"provider":"anthropic","model_id":"claude-sonnet-5","tier":"balanced","input_usd_per_mtok":2.0,"cached_input_usd_per_mtok":null,"output_usd_per_mtok":10.0,"quality":0.94,"latency":0.35,"capabilities":["reasoning","coding","tools","vision"],"enabled":true,"pricing_note":"introductory price through 2026-08-31; refresh after this date"},
+    {"provider":"google","model_id":"gemini-3.6-flash","tier":"balanced","input_usd_per_mtok":1.5,"cached_input_usd_per_mtok":0.15,"output_usd_per_mtok":7.5,"quality":0.93,"latency":0.25,"capabilities":["reasoning","coding","tools","structured_output","vision","search"],"enabled":true},
+    {"provider":"xai","model_id":"grok-4.5","tier":"balanced","input_usd_per_mtok":2.0,"cached_input_usd_per_mtok":0.30,"output_usd_per_mtok":6.0,"quality":0.93,"latency":0.35,"capabilities":["reasoning","coding","tools","structured_output","vision","search"],"enabled":true},
+    {"provider":"deepseek","model_id":"deepseek-v4-flash","tier":"economy","input_usd_per_mtok":0.14,"cached_input_usd_per_mtok":0.0028,"output_usd_per_mtok":0.28,"quality":0.86,"latency":0.25,"capabilities":["reasoning","coding","tools","structured_output"],"enabled":true},
+    {"provider":"deepseek","model_id":"deepseek-v4-pro","tier":"balanced","input_usd_per_mtok":0.435,"cached_input_usd_per_mtok":0.003625,"output_usd_per_mtok":0.87,"quality":0.92,"latency":0.40,"capabilities":["reasoning","coding","tools","structured_output"],"enabled":true},
+    {"provider":"mistral","model_id":"mistral-medium-3-5","tier":"balanced","input_usd_per_mtok":1.5,"cached_input_usd_per_mtok":null,"output_usd_per_mtok":7.5,"quality":0.91,"latency":0.35,"capabilities":["reasoning","coding","tools","structured_output","vision"],"enabled":true},
+    {"provider":"mistral","model_id":"mistral-small-2603","tier":"economy","input_usd_per_mtok":0.15,"cached_input_usd_per_mtok":null,"output_usd_per_mtok":0.6,"quality":0.82,"latency":0.20,"capabilities":["reasoning","coding","tools","structured_output","vision"],"enabled":true},
+    {"provider":"qwen","model_id":"dynamic-discovery","tier":"discovery","input_usd_per_mtok":null,"cached_input_usd_per_mtok":null,"output_usd_per_mtok":null,"quality":0.0,"latency":1.0,"capabilities":[],"enabled":false},
+    {"provider":"moonshot","model_id":"dynamic-discovery","tier":"discovery","input_usd_per_mtok":null,"cached_input_usd_per_mtok":null,"output_usd_per_mtok":null,"quality":0.0,"latency":1.0,"capabilities":[],"enabled":false},
+    {"provider":"cohere","model_id":"dynamic-discovery","tier":"discovery","input_usd_per_mtok":null,"cached_input_usd_per_mtok":null,"output_usd_per_mtok":null,"quality":0.0,"latency":1.0,"capabilities":[],"enabled":false},
+    {"provider":"perplexity","model_id":"dynamic-discovery","tier":"discovery","input_usd_per_mtok":null,"cached_input_usd_per_mtok":null,"output_usd_per_mtok":null,"quality":0.0,"latency":1.0,"capabilities":[],"enabled":false}
+  ]
+}
