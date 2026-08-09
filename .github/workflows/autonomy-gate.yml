@@ -12,6 +12,6 @@ permissions:
 
 jobs:
   policy:
-    uses: venturalabs-ai/ventura.build/.github/workflows/autonomy-gate.yml@7cb147db2872772fed695e1821870495c0852d91
+    uses: venturalabs-ai/ventura.build/.github/workflows/autonomy-gate.yml@f3201ea82ffec6c1fcb310be047b84b1160e340c
     with:
       run_python_tests: false
