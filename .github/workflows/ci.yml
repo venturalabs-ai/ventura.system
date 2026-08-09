@@ -24,5 +24,7 @@ jobs:
         run: python -m compileall -q ventura_system scripts tests
       - name: Test adaptive router
         run: python -m unittest discover -s tests -p 'test_router.py' -v
+      - name: Validate registry freshness
+        run: python scripts/check_registry_freshness.py --max-age-days 7
       - name: Smoke benchmark
         run: python scripts/benchmark_router.py
