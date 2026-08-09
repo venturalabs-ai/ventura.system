@@ -14,13 +14,19 @@ jobs:
   repository-health:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - name: Validate repository baseline
         run: |
           test -s README.md
           test -s LICENSE
+          test -s config/model-registry.json
+          test -s config/routing-policy.json
           if grep -n "chamseddinehiddoud" README.md; then
             echo "::error::README still references the previous GitHub username"
             exit 1
           fi
+          python -m json.tool config/model-registry.json >/dev/null
+          python -m json.tool config/routing-policy.json >/dev/null
           echo "Repository baseline OK"
