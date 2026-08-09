@@ -1,0 +1,21 @@
+{
+  "schema_version": 1,
+  "owner": "venturalabs-ai",
+  "repositories": [
+    {"repository":"venturalabs-ai/ventura.system","role":"orchestrator","budget_profile":"normal","context_strategy":"semantic_ast","routing_enabled":true,"champion_challenger":true},
+    {"repository":"venturalabs-ai/ventura.build","role":"engineering_platform","budget_profile":"simple","context_strategy":"diff_first","routing_enabled":false,"champion_challenger":false},
+    {"repository":"venturalabs-ai/Ventura.SEG","role":"security","budget_profile":"critical","context_strategy":"semantic_ast","routing_enabled":true,"champion_challenger":true},
+    {"repository":"venturalabs-ai/ventura-agents-2","role":"agent_catalog","budget_profile":"normal","context_strategy":"semantic","routing_enabled":true,"champion_challenger":true},
+    {"repository":"venturalabs-ai/ventura.apis","role":"provider_catalog","budget_profile":"simple","context_strategy":"semantic","routing_enabled":false,"champion_challenger":false},
+    {"repository":"venturalabs-ai/ventura.toolkit","role":"shared_sdk","budget_profile":"normal","context_strategy":"semantic_ast","routing_enabled":true,"champion_challenger":false},
+    {"repository":"venturalabs-ai/ventura.algorithms","role":"optimizer","budget_profile":"normal","context_strategy":"semantic_ast","routing_enabled":true,"champion_challenger":true},
+    {"repository":"venturalabs-ai/ventura.roadmap","role":"roadmap","budget_profile":"simple","context_strategy":"semantic","routing_enabled":true,"champion_challenger":false},
+    {"repository":"venturalabs-ai/ventura.learn","role":"knowledge","budget_profile":"simple","context_strategy":"semantic","routing_enabled":false,"champion_challenger":false},
+    {"repository":"venturalabs-ai/ventura.opensource","role":"discovery","budget_profile":"simple","context_strategy":"semantic","routing_enabled":false,"champion_challenger":false},
+    {"repository":"venturalabs-ai/ventura.awesome","role":"discovery","budget_profile":"simple","context_strategy":"semantic","routing_enabled":false,"champion_challenger":false},
+    {"repository":"venturalabs-ai/ventura.interview","role":"curation","budget_profile":"simple","context_strategy":"semantic","routing_enabled":false,"champion_challenger":false},
+    {"repository":"venturalabs-ai/ventura-pro-agro","role":"domain_product","budget_profile":"normal","context_strategy":"semantic_ast","routing_enabled":true,"champion_challenger":true},
+    {"repository":"venturalabs-ai/ventura-bio","role":"experimental_domain","budget_profile":"normal","context_strategy":"semantic_ast","routing_enabled":true,"champion_challenger":true},
+    {"repository":"venturalabs-ai/ventura-robo","role":"experimental_domain","budget_profile":"normal","context_strategy":"semantic_ast","routing_enabled":true,"champion_challenger":true}
+  ]
+}
