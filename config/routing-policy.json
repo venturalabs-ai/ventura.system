@@ -1,0 +1,26 @@
+{
+  "schema_version": 1,
+  "default": {"max_cost_usd":0.20,"max_models":2,"challenger_threshold":0.72},
+  "profiles": {
+    "simple": {"max_cost_usd":0.02,"max_models":1,"challenger_threshold":0.50},
+    "normal": {"max_cost_usd":0.20,"max_models":2,"challenger_threshold":0.72},
+    "critical": {"max_cost_usd":2.00,"max_models":3,"challenger_threshold":0.90}
+  },
+  "hard_gates": [
+    "delete_repository",
+    "force_push",
+    "change_secrets",
+    "reduce_security",
+    "destructive_deployment",
+    "budget_override",
+    "irreversible_financial_action"
+  ],
+  "principles": [
+    "tool_first",
+    "minimal_context",
+    "cache_stable_prefixes",
+    "early_exit",
+    "independent_challenger_for_high_risk",
+    "never_require_nonexistent_check"
+  ]
+}
