@@ -1,10 +1,14 @@
 #!/usr/bin/env python3
 from pathlib import Path
+import sys
 from time import perf_counter
+
+ROOT = Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
 
 from ventura_system import BudgetPolicy, TaskProfile, choose_route, load_registry
 
-ROOT = Path(__file__).resolve().parents[1]
 models = load_registry(ROOT / "config" / "model-registry.json")
 cases = [
     TaskProfile("simple", frozenset({"reasoning", "structured_output"}), 2000, 300),
