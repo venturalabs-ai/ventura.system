@@ -1,0 +1,17 @@
+name: Ventura Autonomy Gate
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  policy:
+    uses: venturalabs-ai/ventura.build/.github/workflows/autonomy-gate.yml@7cb147db2872772fed695e1821870495c0852d91
+    with:
+      run_python_tests: false
