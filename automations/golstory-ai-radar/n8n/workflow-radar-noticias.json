@@ -1,0 +1,261 @@
+{
+  "name": "GOLstory - Radar de IA (Agregador com Atribuicao)",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            { "field": "hours", "hoursInterval": 1 }
+          ]
+        }
+      },
+      "id": "trigger-schedule",
+      "name": "A cada 1 hora",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [-1600, 0]
+    },
+    {
+      "parameters": {
+        "operation": "read",
+        "fileSelector": "/files/sources.json",
+        "options": {}
+      },
+      "id": "read-sources",
+      "name": "Ler sources.json",
+      "type": "n8n-nodes-base.readWriteFile",
+      "typeVersion": 1,
+      "position": [-1380, 0]
+    },
+    {
+      "parameters": {
+        "operation": "fromJson",
+        "options": {}
+      },
+      "id": "extract-json",
+      "name": "Parsear JSON",
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1,
+      "position": [-1160, 0]
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "sources",
+        "options": {}
+      },
+      "id": "split-sources",
+      "name": "Uma fonte por item",
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [-940, 0]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "loose" },
+          "conditions": [
+            {
+              "leftValue": "={{$json.rss}}",
+              "rightValue": "",
+              "operator": { "type": "string", "operation": "notEmpty" }
+            },
+            {
+              "leftValue": "={{$json.tier}}",
+              "rightValue": 3,
+              "operator": { "type": "number", "operation": "lt" }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "filter-active",
+      "name": "Fontes ativas (tier 1-2, RSS conhecido)",
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 2.2,
+      "position": [-720, 0]
+    },
+    {
+      "parameters": { "batchSize": 8, "options": {} },
+      "id": "loop-sources",
+      "name": "Lote de fontes",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [-500, 0]
+    },
+    {
+      "parameters": { "url": "={{$json.rss}}", "options": {} },
+      "id": "read-rss",
+      "name": "Buscar feed RSS",
+      "type": "n8n-nodes-base.rssFeedRead",
+      "typeVersion": 1.1,
+      "position": [-280, -80],
+      "continueOnFail": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsToolExecute": "",
+        "jsCode": "// Mantem apenas itens publicados na ultima 1h10 (buffer de seguranca)\n// e anexa metadados da fonte de origem.\nconst now = DateTime.now();\nconst limite = now.minus({ minutes: 70 });\nconst fonte = $('Lote de fontes').item.json;\nconst out = [];\nfor (const item of $input.all()) {\n  const j = item.json;\n  if (!j.pubDate && !j.isoDate) continue;\n  const pub = DateTime.fromISO(j.isoDate || j.pubDate);\n  if (!pub.isValid || pub < limite) continue;\n  out.push({\n    json: {\n      source_id: fonte.id,\n      source_name: fonte.name,\n      original_url: j.link,\n      original_title: j.title,\n      original_summary: j.contentSnippet || j.content || '',\n      published_at: pub.toISO()\n    }\n  });\n}\nreturn out;"
+      },
+      "id": "filter-recent",
+      "name": "Filtrar itens novos (ultima hora)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-60, -80]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO ai_news_items (source_id, source_name, original_url, original_title, published_at)\nVALUES ($1, $2, $3, $4, $5)\nON CONFLICT (original_url) DO NOTHING\nRETURNING id, source_id, source_name, original_url, original_title, published_at;",
+        "options": {
+          "queryReplacement": "={{$json.source_id}},{{$json.source_name}},{{$json.original_url}},{{$json.original_title}},{{$json.published_at}}"
+        }
+      },
+      "id": "insert-dedupe",
+      "name": "Registrar (dedupe via ON CONFLICT)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [160, -80],
+      "credentials": {
+        "postgres": { "id": "", "name": "Postgres GOLstory" }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.anthropic.com/v1/messages",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "anthropic-version", "value": "2023-06-01" },
+            { "name": "content-type", "value": "application/json" }
+          ]
+        },
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ model: \"claude-sonnet-5\", max_tokens: 600, system: \"Voce e o editor de curadoria do GOLstory.com.br, portal brasileiro de noticias sobre IA. Recebe o titulo e um trecho de uma materia em ingles (ou outro idioma) de um veiculo terceiro. Sua tarefa: escrever em portugues do Brasil um TITULO curto e um RESUMO de no maximo 4 frases, informativo e neutro, SEM copiar frases literalmente do original (parafraseie). NUNCA invente fatos que nao estao no trecho fornecido. Responda SOMENTE em JSON no formato {\\\"titulo_pt\\\": string, \\\"resumo_pt\\\": string}, sem markdown.\", messages: [{ role: \"user\", content: `Veiculo original: ${$json.source_name}\\nTitulo original: ${$json.original_title}\\nTrecho: ${$json.original_summary}` }] }) }}"
+      },
+      "id": "ai-resumo",
+      "name": "Traduzir e resumir (Claude)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [380, -80],
+      "continueOnFail": true,
+      "onError": "continueRegularOutput",
+      "credentials": {
+        "httpHeaderAuth": { "id": "", "name": "Anthropic API Key" }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const resp = $json;\nif (resp.error) {\n  return [{ json: { ...$('Registrar (dedupe via ON CONFLICT)').item.json, erro: JSON.stringify(resp.error) } }];\n}\nlet parsed;\ntry {\n  const text = resp.content?.[0]?.text || '{}';\n  parsed = JSON.parse(text);\n} catch (e) {\n  parsed = { titulo_pt: null, resumo_pt: null };\n}\nconst origem = $('Registrar (dedupe via ON CONFLICT)').item.json;\nreturn [{\n  json: {\n    ...origem,\n    titulo_pt: parsed.titulo_pt,\n    resumo_pt: parsed.resumo_pt,\n    falhou: !parsed.titulo_pt\n  }\n}];"
+      },
+      "id": "parse-resumo",
+      "name": "Extrair resumo gerado",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [600, -80]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "loose" },
+          "conditions": [
+            { "leftValue": "={{$json.falhou}}", "rightValue": true, "operator": { "type": "boolean", "operation": "notEqual" } }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "if-resumo-ok",
+      "name": "Resumo gerado com sucesso?",
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 2.2,
+      "position": [820, -80]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "html-content",
+              "name": "content_html",
+              "type": "string",
+              "value": "=<p>{{$json.resumo_pt}}</p><p><em>Fonte: <a href=\"{{$json.original_url}}\" target=\"_blank\" rel=\"nofollow noopener\">{{$json.source_name}}</a></em></p><p style=\"font-size:0.85em;color:#666\">Curadoria e resumo: Redacao GOLstory. Materia original em {{$json.source_name}}.</p>"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "montar-html",
+      "name": "Montar HTML do post",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [1040, -80]
+    },
+    {
+      "parameters": {
+        "resource": "post",
+        "operation": "create",
+        "title": "={{$json.titulo_pt}}",
+        "additionalFields": {
+          "content": "={{$json.content_html}}",
+          "status": "publish",
+          "authorId": "={{$env.WORDPRESS_AUTHOR_ID_REDACAO}}",
+          "categories": "={{ [ Number($env.WORDPRESS_CATEGORY_ID_RADAR) ] }}"
+        }
+      },
+      "id": "wp-publish-radar",
+      "name": "Publicar no WordPress (Radar IA)",
+      "type": "n8n-nodes-base.wordpress",
+      "typeVersion": 1,
+      "position": [1260, -80],
+      "continueOnFail": true,
+      "onError": "continueRegularOutput",
+      "credentials": {
+        "wordpressApi": { "id": "", "name": "WordPress GOLstory" }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE ai_news_items SET radar_status = CASE WHEN $2::text IS NOT NULL THEN 'published' ELSE 'error' END, radar_wp_post_id = $2::bigint, radar_published_at = now() WHERE id = $1;",
+        "options": {
+          "queryReplacement": "={{$json.id}},{{$json.id ? undefined : null}}"
+        }
+      },
+      "id": "update-status",
+      "name": "Atualizar status no Postgres",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [1480, -80],
+      "notes": "Ajuste os parametros da query no editor n8n: $1 = id do registro em ai_news_items (vindo de 'Registrar'), $2 = id do post retornado pelo WordPress.",
+      "credentials": {
+        "postgres": { "id": "", "name": "Postgres GOLstory" }
+      }
+    }
+  ],
+  "connections": {
+    "A cada 1 hora": { "main": [[{ "node": "Ler sources.json", "type": "main", "index": 0 }]] },
+    "Ler sources.json": { "main": [[{ "node": "Parsear JSON", "type": "main", "index": 0 }]] },
+    "Parsear JSON": { "main": [[{ "node": "Uma fonte por item", "type": "main", "index": 0 }]] },
+    "Uma fonte por item": { "main": [[{ "node": "Fontes ativas (tier 1-2, RSS conhecido)", "type": "main", "index": 0 }]] },
+    "Fontes ativas (tier 1-2, RSS conhecido)": { "main": [[{ "node": "Lote de fontes", "type": "main", "index": 0 }]] },
+    "Lote de fontes": { "main": [[], [{ "node": "Buscar feed RSS", "type": "main", "index": 0 }]] },
+    "Buscar feed RSS": { "main": [[{ "node": "Filtrar itens novos (ultima hora)", "type": "main", "index": 0 }]] },
+    "Filtrar itens novos (ultima hora)": { "main": [[{ "node": "Registrar (dedupe via ON CONFLICT)", "type": "main", "index": 0 }]] },
+    "Registrar (dedupe via ON CONFLICT)": { "main": [[{ "node": "Traduzir e resumir (Claude)", "type": "main", "index": 0 }]] },
+    "Traduzir e resumir (Claude)": { "main": [[{ "node": "Extrair resumo gerado", "type": "main", "index": 0 }]] },
+    "Extrair resumo gerado": { "main": [[{ "node": "Resumo gerado com sucesso?", "type": "main", "index": 0 }]] },
+    "Resumo gerado com sucesso?": { "main": [[{ "node": "Montar HTML do post", "type": "main", "index": 0 }]] },
+    "Montar HTML do post": { "main": [[{ "node": "Publicar no WordPress (Radar IA)", "type": "main", "index": 0 }]] },
+    "Publicar no WordPress (Radar IA)": { "main": [[{ "node": "Atualizar status no Postgres", "type": "main", "index": 0 }]] },
+    "Atualizar status no Postgres": { "main": [[{ "node": "Lote de fontes", "type": "main", "index": 0 }]] }
+  },
+  "active": false,
+  "settings": { "executionOrder": "v1" },
+  "pinData": {}
+}

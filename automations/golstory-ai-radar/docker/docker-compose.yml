@@ -1,0 +1,70 @@
+# GOLstory AI Radar — n8n + Postgres de controle
+#
+# Pressupoe que o VPS Hostinger (srv1925412.hstgr.cloud) ja tem Docker
+# e Traefik rodando (imagem "Ubuntu 24.04 com Docker e Traefik" da Hostinger).
+# Este stack SOBE ao lado do Traefik existente, usando a rede externa dele.
+#
+# Antes de subir:
+#   1. docker network ls   -> confirme o nome da rede externa do Traefik
+#      e ajuste TRAEFIK_NETWORK no .env
+#   2. Copie .env.example para .env e preencha os valores
+#   3. docker compose up -d
+
+services:
+  n8n:
+    image: docker.n8n.io/n8nio/n8n:latest
+    container_name: golstory_n8n
+    restart: unless-stopped
+    environment:
+      - N8N_HOST=${N8N_SUBDOMAIN}
+      - N8N_PROTOCOL=https
+      - N8N_PORT=5678
+      - WEBHOOK_URL=https://${N8N_SUBDOMAIN}/
+      - N8N_EDITOR_BASE_URL=https://${N8N_SUBDOMAIN}/
+      - GENERIC_TIMEZONE=America/Sao_Paulo
+      - TZ=America/Sao_Paulo
+      - N8N_ENCRYPTION_KEY=${N8N_ENCRYPTION_KEY}
+      - N8N_SECURE_COOKIE=true
+      - N8N_RUNNERS_ENABLED=true
+    volumes:
+      - n8n_data:/home/node/.n8n
+      - ../sources.json:/files/sources.json:ro
+    networks:
+      - internal
+      - traefik_network
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=${TRAEFIK_NETWORK}"
+      - "traefik.http.routers.golstory-n8n.rule=Host(`${N8N_SUBDOMAIN}`)"
+      - "traefik.http.routers.golstory-n8n.entrypoints=websecure"
+      - "traefik.http.routers.golstory-n8n.tls=true"
+      - "traefik.http.routers.golstory-n8n.tls.certresolver=${TRAEFIK_CERTRESOLVER}"
+      - "traefik.http.services.golstory-n8n.loadbalancer.server.port=5678"
+    depends_on:
+      - postgres
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: golstory_postgres
+    restart: unless-stopped
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=golstory
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init-db.sql:/docker-entrypoint-initdb.d/init-db.sql:ro
+    networks:
+      - internal
+    # Nao publicar porta no host: so o n8n (mesma rede "internal") acessa o banco.
+
+volumes:
+  n8n_data:
+  postgres_data:
+
+networks:
+  internal:
+    driver: bridge
+  traefik_network:
+    external: true
+    name: ${TRAEFIK_NETWORK}
