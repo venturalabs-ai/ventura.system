@@ -1,0 +1,287 @@
+{
+  "name": "GOLstory - Analise Autoral (Wemerson M. Oliveira)",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            { "field": "hours", "hoursInterval": 2 }
+          ]
+        }
+      },
+      "id": "trigger-schedule",
+      "name": "A cada 2 horas",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [-1600, 0]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id, source_id, source_name, original_url, original_title\nFROM ai_news_items\nWHERE radar_status = 'published'\n  AND analise_status = 'not_selected'\n  AND published_at > now() - interval '48 hours'\nORDER BY published_at DESC\nLIMIT 15;"
+      },
+      "id": "select-candidates",
+      "name": "Selecionar candidatos",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [-1380, 0],
+      "credentials": {
+        "postgres": { "id": "", "name": "Postgres GOLstory" }
+      }
+    },
+    {
+      "parameters": { "batchSize": 5, "options": {} },
+      "id": "loop-candidates",
+      "name": "Lote de candidatos",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [-1160, 0]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.anthropic.com/v1/messages",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "anthropic-version", "value": "2023-06-01" },
+            { "name": "content-type", "value": "application/json" }
+          ]
+        },
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ model: \"claude-sonnet-5\", max_tokens: 200, system: \"Voce avalia relevancia de noticias de IA para o publico brasileiro de negocios e tecnologia do portal GOLstory. Responda SOMENTE em JSON {\\\"score\\\": number de 0 a 10, \\\"motivo\\\": string curta}. Considere: impacto no mercado, ineditismo, relevancia para o Brasil, e potencial de gerar analise original (nao apenas nota factual).\", messages: [{ role: \"user\", content: `Fonte: ${$json.source_name}\\nTitulo: ${$json.original_title}\\nURL: ${$json.original_url}` }] }) }}"
+      },
+      "id": "ai-score",
+      "name": "Pontuar relevancia (Claude)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [-940, -80],
+      "continueOnFail": true,
+      "onError": "continueRegularOutput",
+      "credentials": {
+        "httpHeaderAuth": { "id": "", "name": "Anthropic API Key" }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const candidato = $('Lote de candidatos').item.json;\nlet score = 0, motivo = 'erro ao pontuar';\ntry {\n  const text = $json.content?.[0]?.text || '{}';\n  const parsed = JSON.parse(text);\n  score = Number(parsed.score) || 0;\n  motivo = parsed.motivo || '';\n} catch (e) {}\nreturn [{ json: { ...candidato, relevance_score: score, motivo } }];"
+      },
+      "id": "parse-score",
+      "name": "Extrair pontuacao",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-720, -80]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE ai_news_items\nSET relevance_score = $2,\n    analise_status = CASE WHEN $2::int >= 7 THEN 'pending' ELSE 'skipped' END\nWHERE id = $1\nRETURNING *;",
+        "options": {
+          "queryReplacement": "={{$json.id}},{{$json.relevance_score}}"
+        }
+      },
+      "id": "update-score",
+      "name": "Gravar pontuacao no Postgres",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [-500, -80],
+      "credentials": {
+        "postgres": { "id": "", "name": "Postgres GOLstory" }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "loose" },
+          "conditions": [
+            { "leftValue": "={{$json.analise_status}}", "rightValue": "pending", "operator": { "type": "string", "operation": "equals" } }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "filter-relevant",
+      "name": "So itens com score >= 7",
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 2.2,
+      "position": [-280, -80]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.anthropic.com/v1/messages",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "anthropic-version", "value": "2023-06-01" },
+            { "name": "content-type", "value": "application/json" }
+          ]
+        },
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ model: \"claude-sonnet-5\", max_tokens: 2000, system: \"Voce escreve, em nome de Wemerson M. Oliveira (CEO do Grupo GOLup), colunas de analise ORIGINAL sobre o mercado de IA para o portal GOLstory.com.br. Regras obrigatorias: (1) NUNCA traduza ou reescreva a materia-fonte frase a frase — escreva um texto novo, com contexto, opiniao fundamentada e implicacoes para o mercado brasileiro; (2) cite explicitamente a(s) fonte(s) no corpo do texto com link, ex: '<a href=\\\"URL\\\">Nome do veiculo</a>'; (3) nao invente fatos, numeros ou citacoes que nao estejam implicitos no material fornecido; (4) tom: analitico, direto, primeira pessoa do CEO. Responda SOMENTE em JSON: {\\\"titulo\\\": string, \\\"resumo_meta\\\": string ate 160 caracteres, \\\"corpo_html\\\": string com paragrafos em <p>, \\\"prompt_imagem_capa\\\": string em ingles descrevendo uma imagem de capa editorial (sem texto/logos) para este artigo}\", messages: [{ role: \"user\", content: `Fonte original: ${$json.source_name}\\nTitulo original: ${$json.original_title}\\nURL: ${$json.original_url}\\n\\nEscreva a coluna de analise em portugues do Brasil.` }] }) }}"
+      },
+      "id": "ai-article",
+      "name": "Gerar analise original (Claude)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [-60, -80],
+      "continueOnFail": true,
+      "onError": "continueRegularOutput",
+      "credentials": {
+        "httpHeaderAuth": { "id": "", "name": "Anthropic API Key" }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const origem = $('So itens com score >= 7').item.json;\nlet parsed;\ntry {\n  const text = $json.content?.[0]?.text || '{}';\n  parsed = JSON.parse(text);\n} catch (e) {\n  parsed = null;\n}\nif (!parsed || !parsed.titulo) {\n  return [{ json: { ...origem, falhou: true } }];\n}\nconst corpoComFonte = parsed.corpo_html + `<p style=\\\"font-size:0.85em;color:#666\\\">Fonte consultada: <a href=\\\"${origem.original_url}\\\" target=\\\"_blank\\\" rel=\\\"nofollow noopener\\\">${origem.source_name}</a>. Analise assinada por Wemerson M. Oliveira, CEO do Grupo GOLup.</p>`;\nreturn [{\n  json: {\n    ...origem,\n    titulo: parsed.titulo,\n    resumo_meta: parsed.resumo_meta,\n    corpo_html: corpoComFonte,\n    prompt_imagem_capa: parsed.prompt_imagem_capa,\n    falhou: false\n  }\n}];"
+      },
+      "id": "parse-article",
+      "name": "Extrair artigo gerado",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [160, -80]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "loose" },
+          "conditions": [
+            { "leftValue": "={{$json.falhou}}", "rightValue": true, "operator": { "type": "boolean", "operation": "notEqual" } }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "filter-article-ok",
+      "name": "Artigo gerado com sucesso?",
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 2.2,
+      "position": [380, -80]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/images/generations",
+        "sendHeaders": true,
+        "headerParameters": { "parameters": [{ "name": "content-type", "value": "application/json" }] },
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ model: \"gpt-image-1\", prompt: $json.prompt_imagem_capa + \". Estilo editorial, capa de materia jornalistica sobre tecnologia, sem texto sobreposto, sem logotipos.\", size: \"1536x1024\", n: 1 }) }}"
+      },
+      "id": "gen-image",
+      "name": "Gerar imagem de capa",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [600, -80],
+      "continueOnFail": true,
+      "onError": "continueRegularOutput",
+      "credentials": {
+        "httpHeaderAuth": { "id": "", "name": "OpenAI API Key" }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "toBinary",
+        "sourceProperty": "data[0].b64_json",
+        "options": {
+          "fileName": "=capa-{{$('Artigo gerado com sucesso?').item.json.id}}.png",
+          "mimeType": "image/png"
+        }
+      },
+      "id": "convert-image",
+      "name": "Converter base64 em arquivo",
+      "type": "n8n-nodes-base.convertToFile",
+      "typeVersion": 1.1,
+      "position": [820, -80]
+    },
+    {
+      "parameters": {
+        "resource": "media",
+        "operation": "upload",
+        "binaryData": true,
+        "binaryPropertyName": "data",
+        "additionalFields": {}
+      },
+      "id": "wp-upload-image",
+      "name": "Enviar imagem ao WordPress",
+      "type": "n8n-nodes-base.wordpress",
+      "typeVersion": 1,
+      "position": [1040, -80],
+      "continueOnFail": true,
+      "onError": "continueRegularOutput",
+      "credentials": {
+        "wordpressApi": { "id": "", "name": "WordPress GOLstory" }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "post",
+        "operation": "create",
+        "title": "={{$('Artigo gerado com sucesso?').item.json.titulo}}",
+        "additionalFields": {
+          "content": "={{$('Artigo gerado com sucesso?').item.json.corpo_html}}",
+          "excerpt": "={{$('Artigo gerado com sucesso?').item.json.resumo_meta}}",
+          "status": "publish",
+          "authorId": "={{$env.WORDPRESS_AUTHOR_ID_WEMERSON}}",
+          "categories": "={{ [ Number($env.WORDPRESS_CATEGORY_ID_ANALISE) ] }}",
+          "featuredMedia": "={{$json.id}}"
+        }
+      },
+      "id": "wp-publish-article",
+      "name": "Publicar Analise (autor: Wemerson M. Oliveira)",
+      "type": "n8n-nodes-base.wordpress",
+      "typeVersion": 1,
+      "position": [1260, -80],
+      "continueOnFail": true,
+      "onError": "continueRegularOutput",
+      "credentials": {
+        "wordpressApi": { "id": "", "name": "WordPress GOLstory" }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE ai_news_items\nSET analise_status = 'published',\n    analise_wp_post_id = $2,\n    analise_published_at = now()\nWHERE id = $1;",
+        "options": {
+          "queryReplacement": "={{$('Artigo gerado com sucesso?').item.json.id}},{{$json.id}}"
+        }
+      },
+      "id": "update-status-analise",
+      "name": "Atualizar status no Postgres",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [1480, -80],
+      "credentials": {
+        "postgres": { "id": "", "name": "Postgres GOLstory" }
+      }
+    }
+  ],
+  "connections": {
+    "A cada 2 horas": { "main": [[{ "node": "Selecionar candidatos", "type": "main", "index": 0 }]] },
+    "Selecionar candidatos": { "main": [[{ "node": "Lote de candidatos", "type": "main", "index": 0 }]] },
+    "Lote de candidatos": { "main": [[], [{ "node": "Pontuar relevancia (Claude)", "type": "main", "index": 0 }]] },
+    "Pontuar relevancia (Claude)": { "main": [[{ "node": "Extrair pontuacao", "type": "main", "index": 0 }]] },
+    "Extrair pontuacao": { "main": [[{ "node": "Gravar pontuacao no Postgres", "type": "main", "index": 0 }]] },
+    "Gravar pontuacao no Postgres": { "main": [[{ "node": "So itens com score >= 7", "type": "main", "index": 0 }]] },
+    "So itens com score >= 7": { "main": [[{ "node": "Gerar analise original (Claude)", "type": "main", "index": 0 }]] },
+    "Gerar analise original (Claude)": { "main": [[{ "node": "Extrair artigo gerado", "type": "main", "index": 0 }]] },
+    "Extrair artigo gerado": { "main": [[{ "node": "Artigo gerado com sucesso?", "type": "main", "index": 0 }]] },
+    "Artigo gerado com sucesso?": { "main": [[{ "node": "Gerar imagem de capa", "type": "main", "index": 0 }]] },
+    "Gerar imagem de capa": { "main": [[{ "node": "Converter base64 em arquivo", "type": "main", "index": 0 }]] },
+    "Converter base64 em arquivo": { "main": [[{ "node": "Enviar imagem ao WordPress", "type": "main", "index": 0 }]] },
+    "Enviar imagem ao WordPress": { "main": [[{ "node": "Publicar Analise (autor: Wemerson M. Oliveira)", "type": "main", "index": 0 }]] },
+    "Publicar Analise (autor: Wemerson M. Oliveira)": { "main": [[{ "node": "Atualizar status no Postgres", "type": "main", "index": 0 }]] },
+    "Atualizar status no Postgres": { "main": [[{ "node": "Lote de candidatos", "type": "main", "index": 0 }]] }
+  },
+  "active": false,
+  "settings": { "executionOrder": "v1" },
+  "pinData": {}
+}
